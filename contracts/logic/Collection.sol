@@ -208,7 +208,12 @@ library CollectionLib {
         uint256[] memory keys = new uint256[](nftIds.length);
 
         for (uint256 idx; idx < nftIds.length; ) {
-            if (Helper.hasActiveActivities(collectionState, nftIds[idx])) revert Errors.NftHasActiveActivities();
+            if (
+                Helper.hasActiveActivities(collectionState, nftIds[idx]) &&
+                /// listing safebox can be extended
+                (!Helper.hasActivePrivateOffer(collectionState, nftIds[idx]) ||
+                    !Helper.hasActiveListOffer(collectionState, nftIds[idx]))
+            ) revert Errors.NftHasActiveActivities();
 
             SafeBox storage safeBox = Helper.useSafeBoxAndKey(collectionState, onBehalfOf, nftIds[idx]);
 
@@ -262,13 +267,20 @@ library CollectionLib {
         uint256 totalManaged = collection.activeSafeBoxCnt + freeAmount;
 
         uint256[] memory selectedTokenIds = new uint256[](claimCnt);
-
+        uint256 currentBlockNumber = Constants._getBlockNumber();
         while (claimCnt > 0) {
             /// just compute a deterministic random number
             uint256 chosenNftIdx = uint256(
                 // https://docs.arbitrum.io/for-devs/concepts/differences-between-arbitrum-ethereum/solidity-support
                 // keccak256(abi.encodePacked(block.timestamp, block.prevrandao, totalManaged))
-                keccak256(abi.encodePacked(block.timestamp, block.number, blockhash(block.number - 1), totalManaged))
+                keccak256(
+                    abi.encodePacked(
+                        block.timestamp,
+                        currentBlockNumber,
+                        Constants._getBlockHash(currentBlockNumber - 1),
+                        totalManaged
+                    )
+                )
             ) % collection.freeTokenIds.length;
 
             unchecked {

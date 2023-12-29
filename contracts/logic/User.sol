@@ -16,8 +16,6 @@ library UserLib {
     /// @notice `sender` withdraw `token` from Scattering and transfer it to `receiver`.
     event WithdrawToken(address indexed sender, address indexed receiver, address indexed token, uint256 amount);
 
-    address internal constant LIST_GUARD = address(1);
-
     function deposit(
         UserFloorAccount storage account,
         address onBehalfOf,

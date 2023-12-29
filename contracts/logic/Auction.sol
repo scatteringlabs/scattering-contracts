@@ -235,7 +235,7 @@ library AuctionLib {
         auctionTemplate.typ = AuctionType.Vault;
 
         SafeBox memory safeboxTemplate = SafeBox({
-            keyId: SafeBoxLib.SAFEBOX_KEY_NOTATION,
+            keyId: Helper.generateNextKeyId(collection),
             expiryTs: uint32(auctionTemplate.endTime + Constants.AUCTION_COMPLETE_GRACE_PERIODS),
             owner: address(this)
         });
@@ -334,6 +334,7 @@ library AuctionLib {
             /// refund previous bid
             /// contract account no need to check credit requirements
             userAccounts[address(this)].transferToken(userAccounts[prevBidder], bidToken, prevBidAmount, false);
+            userAccounts[prevBidder].withdraw(prevBidder, bidToken, prevBidAmount, false);
         }
 
         SafeBox memory safebox = collection.safeBoxes[nftId];
@@ -416,16 +417,11 @@ library AuctionLib {
                     earning,
                     false
                 );
+                userAccounts[safeBox.owner].withdraw(safeBox.owner, auctionInfo.bidTokenAddress, earning, false);
             }
 
             /// transfer safebox
             address winner = auctionInfo.lastBidder;
-            /// @notice Only the NFTs in the vault need to generate a keyId,
-            /// while the owner and the expired ones can use the original keyId
-            if (auctionInfo.typ == AuctionType.Vault) {
-                uint64 keyId = Helper.generateNextKeyId(collection);
-                safeBox.keyId = keyId;
-            }
             collection.transferSafeBox(safeBox, winner);
 
             delete collection.activeAuctions[nftId];

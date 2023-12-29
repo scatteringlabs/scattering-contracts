@@ -207,14 +207,6 @@ library PrivateOfferLib {
         for (uint256 i; i < settlementLen; ) {
             PrivateOfferSettlement memory settlement = settlements[i];
 
-            //            UserFloorAccount storage buyerAccount = userAccounts[settlement.buyer];
-            //            CollectionAccount storage buyerCollectionAccount = buyerAccount.getByKey(collectionId);
-
-            //            buyerCollectionAccount.addSafeboxKey(settlement.nftId, settlement.safeBoxKey);
-
-            //            UserFloorAccount storage sellerAccount = userAccounts[settlement.seller];
-            //            CollectionAccount storage sellerCollectionAccount = sellerAccount.getByKey(collectionId);
-            //            sellerCollectionAccount.removeSafeboxKey(settlement.nftId);
             if (settlement.collectedFund > 0) {
                 totalCost += settlement.collectedFund;
             }
@@ -238,19 +230,11 @@ library PrivateOfferLib {
                 priceWithoutFee = totalCost - protocolFee;
             }
             // @notice todo Future support for royalty NFTs, paying attention to the receiving token and taxes.
-            buyerAccount.transferToken(
-                userAccounts[address(this)],
-                settleToken,
-                protocolFee,
-                // settleToken == creditToken
-                false
-            );
-            buyerAccount.transferToken(
-                sellerAccount,
-                settleToken,
-                priceWithoutFee,
-                false /*settleToken == creditToken*/
-            );
+            buyerAccount.transferToken(userAccounts[address(this)], settleToken, protocolFee, false);
+            {
+                buyerAccount.transferToken(sellerAccount, settleToken, priceWithoutFee, false);
+                sellerAccount.withdraw(settlement.seller, settleToken, priceWithoutFee, false);
+            }
         }
         emit PrivateOfferAccepted(msg.sender, collectionId, activityIds, nftIds, safeBoxKeyIds);
     }

@@ -22,8 +22,6 @@ library Helper {
         if (safeBox.owner != userAccount) {
             revert Errors.NoMatchingSafeBoxKey();
         }
-        //        key = userAccount.getByKey(nftId);
-        //        if (!safeBox.isKeyMatchingSafeBox(key)) revert Errors.NoMatchingSafeBoxKey();
     }
 
     function useSafeBox(
@@ -68,9 +66,8 @@ library Helper {
     function hasActivePrivateOffer(CollectionState storage collection, uint256 nftId) internal view returns (bool) {
         // todo Do not need to set an end time for the order, first check the validity period of the SafeBox, and then verify if it is active
         // return collection.activePrivateOffers[nftId].endTime >= block.timestamp;
-        return
-            collection.safeBoxes[nftId].expiryTs >= block.timestamp &&
-            collection.activePrivateOffers[nftId].owner != address(0);
+        PrivateOffer storage offer = collection.activePrivateOffers[nftId];
+        return offer.activityId > 0 && offer.buyer != address(0) && !useSafeBox(collection, nftId).isSafeBoxExpired();
     }
 
     function hasActiveListOffer(CollectionState storage collection, uint256 nftId) internal view returns (bool) {

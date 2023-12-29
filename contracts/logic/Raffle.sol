@@ -220,6 +220,7 @@ library RaffleLib {
             (uint256 earning, ) = Helper.calculateActivityFee(raffle.collectedFund, raffle.feeRateBips);
             /// contract account no need to check credit requirements
             userAccounts[address(this)].transferToken(userAccounts[raffle.owner], raffle.token, earning, false);
+            userAccounts[raffle.owner].withdraw(raffle.owner, raffle.token, earning, false);
 
             emit RaffleSettled(
                 winTicket.buyer,

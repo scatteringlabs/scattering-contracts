@@ -57,13 +57,10 @@ contract Scattering is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     VRFCoordinatorV2Interface internal immutable COORDINATOR;
 
-    //    /// This should be the SCR token.
-    //    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    //    //    address external immutable creditToken;
-    //    address public constant creditToken = address(1);
-
-    bytes32 internal constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 internal constant MONITOR_ROLE = keccak256("MONITOR_ROLE");
+    bytes32 public constant MONITOR_ROLE = keccak256("MONITOR_ROLE");
+    /// @notice If set to true, this will suspend the functions fragmentNFTs, initAuctionOnVault,
+    /// initAuctionOnExpiredSafeBoxes, ownerInitAuctions, and ownerInitRaffles.
+    bool internal constant FUNCTION_DISABLED = true;
 
     /// A mapping from VRF request Id to raffle.
     mapping(uint256 => RandomRequestInfo) internal randomnessRequestToReceiver;
@@ -112,12 +109,11 @@ contract Scattering is
         __AccessControlEnumerable_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
-        _grantRole(ADMIN_ROLE, _admin);
         _grantRole(MONITOR_ROLE, _monitor);
         trialDays = _trialDays;
     }
 
-    function setTrialDays(uint32 _trialDays) external onlyRole(ADMIN_ROLE) {
+    function setTrialDays(uint32 _trialDays) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_trialDays > 30) {
             revert Errors.InvalidParam();
         }
@@ -125,19 +121,22 @@ contract Scattering is
     }
 
     // @notice set the payment token and the payment amount for extending the expiry of the nft
-    function setPaymentParam(address _paymentToken, uint256 _paymentAmount) external onlyRole(ADMIN_ROLE) {
+    function setPaymentParam(address _paymentToken, uint256 _paymentAmount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_paymentAmount == 0) {
+            revert Errors.InvalidParam();
+        }
         paymentToken = _paymentToken;
         paymentAmount = _paymentAmount;
     }
 
-    function setCommonPoolCommission(uint32 _commonPoolCommission) external onlyRole(ADMIN_ROLE) {
+    function setCommonPoolCommission(uint32 _commonPoolCommission) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_commonPoolCommission > 10_000) {
             revert Errors.InvalidParam();
         }
         commonPoolCommission = _commonPoolCommission;
     }
 
-    function setSafeBoxCommission(uint32 _safeBoxCommission) external onlyRole(ADMIN_ROLE) {
+    function setSafeBoxCommission(uint32 _safeBoxCommission) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_safeBoxCommission > 10_000) {
             revert Errors.InvalidParam();
         }
@@ -148,11 +147,11 @@ contract Scattering is
         _pause();
     }
 
-    function unpause() external onlyRole(ADMIN_ROLE) {
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
     }
 
-    function supportNewCollection(address _originalNFT, address _fragmentToken) external onlyRole(ADMIN_ROLE) {
+    function supportNewCollection(address _originalNFT, address _fragmentToken) external onlyRole(DEFAULT_ADMIN_ROLE) {
         CollectionState storage collection = collectionStates[_originalNFT];
         if (collection.nextKeyId > 0) revert Errors.NftCollectionAlreadySupported();
 
@@ -163,14 +162,14 @@ contract Scattering is
         emit NewCollectionSupported(_originalNFT, _fragmentToken);
     }
 
-    function setNewOfferToken(address _originalNFT, address _offerToken) public onlyRole(ADMIN_ROLE) {
+    function setNewOfferToken(address _originalNFT, address _offerToken) public onlyRole(DEFAULT_ADMIN_ROLE) {
         CollectionState storage collectionState = _useCollectionState(_originalNFT);
         collectionState.offerToken = _offerToken;
         emit OfferTokenUpdated(_originalNFT, _offerToken);
     }
 
     // @notice supported tokens can be used for offer, auction, and raffle
-    function supportNewToken(address _token, bool addOrRemove) external onlyRole(ADMIN_ROLE) {
+    function supportNewToken(address _token, bool addOrRemove) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (supportedTokens[_token] == addOrRemove) {
             return;
         } else {
@@ -181,7 +180,7 @@ contract Scattering is
         }
     }
 
-    function setCollectionProxy(address proxyCollection, address underlying) external onlyRole(ADMIN_ROLE) {
+    function setCollectionProxy(address proxyCollection, address underlying) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (collectionProxy[proxyCollection] == underlying) {
             return;
         } else {
@@ -190,7 +189,7 @@ contract Scattering is
         }
     }
 
-    function withdrawPlatformFee(address token, uint256 amount) external onlyRole(ADMIN_ROLE) {
+    function withdrawPlatformFee(address token, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         /// track platform fee with account, only can withdraw fee accumulated during tx.
         /// no need to check credit token balance for the account.
         UserFloorAccount storage userFloorAccount = userFloorAccounts[address(this)];
@@ -216,12 +215,6 @@ contract Scattering is
     function removeTokens(address token, uint256 amount, address receiver) external whenNotPaused {
         UserFloorAccount storage userFloorAccount = userFloorAccounts[msg.sender];
         userFloorAccount.withdraw(receiver, token, amount, false);
-    }
-
-    function extMulticall(
-        CallData[] calldata calls
-    ) external override(Multicall, IMulticall) onlyRole(ADMIN_ROLE) returns (bytes[] memory) {
-        return multicall2(calls);
     }
 
     /**
@@ -268,20 +261,15 @@ contract Scattering is
 
         (CollectionState storage collectionState, address underlying) = _useUnderlyingCollectionState(collection);
         // verify paymentAmount and nftLengths(_mustValidNftIds already valid) is greater than zero
-        if (paymentAmount > 0) {
-            uint256 totalPayoutAmount = paymentAmount * nftIds.length;
-            _addTokensInternal(address(this), paymentToken, totalPayoutAmount);
+        if (paymentAmount == 0) {
+            revert Errors.InvalidParam();
         }
+        uint256 totalPayoutAmount = paymentAmount * newRentalDays * nftIds.length;
+        _addTokensInternal(address(this), paymentToken, totalPayoutAmount);
 
         collectionState.extendLockingForKeys(
             //            userFloorAccounts[msg.sender],
-            LockParam({
-                proxyCollection: collection,
-                collection: underlying,
-                //                    creditToken: creditToken,
-                nftIds: nftIds,
-                rentalDays: newRentalDays
-            }),
+            LockParam({proxyCollection: collection, collection: underlying, nftIds: nftIds, rentalDays: newRentalDays}),
             msg.sender // todo This can be extended here to support renewing keys for other users.
         );
     }
@@ -293,13 +281,14 @@ contract Scattering is
         collectionState.tidyExpiredNFTs(nftIds, collection);
     }
 
-    // todo This function is no longer needed. A blocking mechanism will be added later to prevent its usage
     function fragmentNFTs(
         address collection,
         uint256[] memory nftIds,
         address onBehalfOf
     ) external nonReentrant whenNotPaused {
-        // _disabledFunction();
+        if (FUNCTION_DISABLED) {
+            _disabledFunction();
+        }
         _mustValidNftIds(nftIds);
         CollectionState storage collectionState = _useCollectionState(collection);
 
@@ -320,13 +309,7 @@ contract Scattering is
             uint256 totalCommission = (Constants.FLOOR_TOKEN_AMOUNT * claimCnt * commonPoolCommission) / 10_000;
             _addTokensInternal(address(this), address(collectionState.fragmentToken), totalCommission);
         }
-        collectionState.claimRandomNFT(
-            //            userFloorAccounts[msg.sender],
-            // creditToken,
-            collection,
-            claimCnt,
-            receiver
-        );
+        collectionState.claimRandomNFT(collection, claimCnt, receiver);
     }
 
     function initAuctionOnVault(
@@ -334,19 +317,16 @@ contract Scattering is
         uint256[] memory vaultIdx,
         address bidToken,
         uint96 bidAmount
-    ) external whenNotPaused {
+    ) external nonReentrant whenNotPaused {
+        if (FUNCTION_DISABLED) {
+            _disabledFunction();
+        }
         _mustValidNftIds(vaultIdx);
         _mustValidTransferAmount(bidToken, bidAmount);
         _mustSupportedToken(bidToken);
 
         CollectionState storage collectionState = _useCollectionState(collection);
-        collectionState.initAuctionOnVault(
-            userFloorAccounts,
-            /*creditToken,*/ collection,
-            vaultIdx,
-            bidToken,
-            bidAmount
-        );
+        collectionState.initAuctionOnVault(userFloorAccounts, collection, vaultIdx, bidToken, bidAmount);
     }
 
     function initAuctionOnExpiredSafeBoxes(
@@ -354,20 +334,16 @@ contract Scattering is
         uint256[] memory nftIds,
         address bidToken,
         uint256 bidAmount
-    ) external whenNotPaused {
+    ) external nonReentrant whenNotPaused {
+        if (FUNCTION_DISABLED) {
+            _disabledFunction();
+        }
         _mustValidNftIds(nftIds);
         _mustValidTransferAmount(bidToken, bidAmount);
         _mustSupportedToken(bidToken);
 
         (CollectionState storage collectionState, address underlying) = _useUnderlyingCollectionState(collection);
-        collectionState.initAuctionOnExpiredSafeBoxes(
-            userFloorAccounts,
-            // creditToken,
-            underlying,
-            nftIds,
-            bidToken,
-            bidAmount
-        );
+        collectionState.initAuctionOnExpiredSafeBoxes(userFloorAccounts, underlying, nftIds, bidToken, bidAmount);
     }
 
     function ownerInitAuctions(
@@ -376,7 +352,9 @@ contract Scattering is
         address token,
         uint256 minimumBid
     ) external nonReentrant whenNotPaused {
-        // _disabledFunction();
+        if (FUNCTION_DISABLED) {
+            _disabledFunction();
+        }
         _mustValidNftIds(nftIds);
         _mustValidTransferAmount(token, minimumBid);
         _mustSupportedToken(token);
@@ -389,11 +367,9 @@ contract Scattering is
         address collection,
         uint256 nftId,
         uint256 bidAmount,
-        // uint256 bidOptionIdx,
         address token,
         uint256 amountToTransfer
     ) external payable nonReentrant whenNotPaused {
-        // _disabledFunction();
         _addSupportTokens(msg.sender, token, amountToTransfer);
 
         /// we don't check whether msg.value is equal to bidAmount, as we utility all currency balance of user account,
@@ -401,29 +377,21 @@ contract Scattering is
         _placeBidOnAuction(collection, nftId, bidAmount /*, bidOptionIdx*/);
     }
 
-    function _placeBidOnAuction(
-        address collection,
-        uint256 nftId,
-        uint256 bidAmount /*, uint256 bidOptionIdx*/
-    ) internal {
+    function _placeBidOnAuction(address collection, uint256 nftId, uint256 bidAmount) internal {
         (CollectionState storage collectionState, address underlying) = _useUnderlyingCollectionState(collection);
-        collectionState.placeBidOnAuction(
-            userFloorAccounts,
-            /* creditToken,*/ underlying,
-            nftId,
-            bidAmount /*, bidOptionIdx*/
-        );
+        collectionState.placeBidOnAuction(userFloorAccounts, underlying, nftId, bidAmount);
     }
 
     function settleAuctions(address collection, uint256[] memory nftIds) external nonReentrant whenNotPaused {
-        // _disabledFunction();
         _mustValidNftIds(nftIds);
         (CollectionState storage collectionState, address underlying) = _useUnderlyingCollectionState(collection);
         collectionState.settleAuctions(userFloorAccounts, underlying, nftIds);
     }
 
     function ownerInitRaffles(RaffleInitParam memory param) external nonReentrant whenNotPaused {
-        // _disabledFunction();
+        if (FUNCTION_DISABLED) {
+            _disabledFunction();
+        }
         _mustValidNftIds(param.nftIds);
         _mustValidTransferAmount(param.ticketToken, param.ticketPrice);
         _mustSupportedToken(param.ticketToken);
@@ -441,7 +409,6 @@ contract Scattering is
         address token,
         uint256 amountToTransfer
     ) external payable nonReentrant whenNotPaused {
-        // _disabledFunction();
         _addSupportTokens(msg.sender, token, amountToTransfer);
         _buyRaffleTicketsInternal(collectionId, nftId, ticketCnt);
     }
@@ -453,7 +420,6 @@ contract Scattering is
     }
 
     function settleRaffles(address collectionId, uint256[] memory nftIds) external nonReentrant whenNotPaused {
-        // _disabledFunction();
         _mustValidNftIds(nftIds);
         if (nftIds.length > 8) revert Errors.InvalidParam();
         (CollectionState storage collectionState, address underlying) = _useUnderlyingCollectionState(collectionId);

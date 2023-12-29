@@ -7,12 +7,10 @@ interface IScatteringEvent {
     event UpdateTokenSupported(address indexed token, bool addOrRemove);
     event ProxyCollectionChanged(address indexed proxyCollection, address indexed underlyingCollection);
 
-    /// @notice `sender` deposit `token` into Scattering on behalf of `receiver`. `receiver`'s account will be updated.
-    event DepositToken(address indexed sender, address indexed receiver, address indexed token, uint256 amount);
-    /// @notice `sender` withdraw `token` from Scattering and transfer it to `receiver`.
-    event WithdrawToken(address indexed sender, address indexed receiver, address indexed token, uint256 amount);
-    /// @notice update the account maintain credit on behalfOf `onBehalfOf`
-    event UpdateMaintainCredit(address indexed onBehalfOf, uint256 minMaintCredit);
+    //    /// @notice `sender` deposit `token` into Scattering on behalf of `receiver`. `receiver`'s account will be updated.
+    //    event DepositToken(address indexed sender, address indexed receiver, address indexed token, uint256 amount);
+    //    /// @notice `sender` withdraw `token` from Scattering and transfer it to `receiver`.
+    //    event WithdrawToken(address indexed sender, address indexed receiver, address indexed token, uint256 amount);
 
     /// @notice Lock NFTs
     /// @param sender who send the tx and pay the NFTs

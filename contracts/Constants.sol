@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
+import "./interface/IArbSys.sol";
+
 library Constants {
     /// @notice Scattering protocol
     /// @dev fragment token amount of 1 NFT (with 18 decimals)
@@ -28,13 +30,6 @@ library Constants {
     uint256 public constant PRIVATE_OFFER_COMPLETE_GRACE_DURATION = 2 days;
     uint256 public constant PRIVATE_OFFER_COST = 0;
 
-    uint256 public constant ADD_FREE_NFT_REWARD = 0;
-
-    /// @notice Lock/Unlock config
-    uint256 public constant USER_SAFEBOX_QUOTA_REFRESH_DURATION = 1 days;
-    uint256 public constant USER_REDEMPTION_WAIVER_REFRESH_DURATION = 1 days;
-    uint256 public constant VAULT_REDEMPTION_MAX_LOKING_RATIO = 80;
-
     /// @notice Activities Fee Rate
 
     /// @notice Fee rate used to distribute funds that collected from Auctions on expired safeboxes.
@@ -59,6 +54,15 @@ library Constants {
     /// @notice The number of free trial days for safeBox
     uint256 public constant TRIAL_DAYS = 3; // 3 days
 
+    /// @notice Arbitrum Config
+
+    // https://github.com/OffchainLabs/nitro/blob/v2.0.14/contracts/src/precompiles/ArbSys.sol#L10
+    // https://github.com/smartcontractkit/chainlink/blob/develop/contracts/src/v0.8/ChainSpecificUtil.sol
+    uint256 private constant ARB_MAINNET_CHAIN_ID = 42161;
+    uint256 private constant ARB_GOERLI_TESTNET_CHAIN_ID = 421613;
+    uint256 private constant ARB_SEPOLIA_TESTNET_CHAIN_ID = 421614;
+    IArbSys private constant ARBSYS = IArbSys(address(100));
+
     struct AuctionBidOption {
         uint256 extendDurationSecs;
         uint256 minimumRaisePct;
@@ -68,18 +72,47 @@ library Constants {
         return AuctionBidOption({extendDurationSecs: 1 hours, minimumRaisePct: 10});
     }
 
-    //    function getBidOption(uint256 idx) internal pure returns (AuctionBidOption memory) {
-    //        require(idx < 4);
-    //        AuctionBidOption[4] memory bidOptions = [
-    //            AuctionBidOption({extendDurationSecs: 5 minutes, minimumRaisePct: 1}),
-    //            AuctionBidOption({extendDurationSecs: 8 hours, minimumRaisePct: 10}),
-    //            AuctionBidOption({extendDurationSecs: 16 hours, minimumRaisePct: 20}),
-    //            AuctionBidOption({extendDurationSecs: 24 hours, minimumRaisePct: 40})
-    //        ];
-    //        return bidOptions[idx];
-    //    }
-
     function raffleDurations() internal pure returns (uint256 duration) {
         return 2 days;
+    }
+
+    /**
+     * @notice Returns the blockhash for the given blockNumber.
+     * @notice When on a known Arbitrum chain, it uses ArbSys.arbBlockHash to get the blockhash.
+     * @notice Otherwise, it uses the blockhash opcode.
+     * @notice Note that the blockhash opcode will return the L2 blockhash on Optimism.
+     */
+    function _getBlockHash(uint256 blockNumber) internal view returns (bytes32) {
+        uint256 chainid = block.chainid;
+        if (_isArbitrumChainId(chainid)) {
+            return ARBSYS.arbBlockHash(blockNumber);
+        }
+
+        return blockhash(blockNumber);
+    }
+
+    /**
+     * @notice Returns the block number of the current block.
+     * @notice When on a known Arbitrum chain, it uses ArbSys.arbBlockNumber to get the block number.
+     * @notice Otherwise, it uses the block.number opcode.
+     * @notice Note that the block.number opcode will return the L2 block number on Optimism.
+     */
+    function _getBlockNumber() internal view returns (uint256) {
+        uint256 chainid = block.chainid;
+        if (_isArbitrumChainId(chainid)) {
+            return ARBSYS.arbBlockNumber();
+        }
+
+        return block.number;
+    }
+
+    /**
+     * @notice Return true if and only if the provided chain ID is an Arbitrum chain ID.
+     */
+    function _isArbitrumChainId(uint256 chainId) internal pure returns (bool) {
+        return
+            chainId == ARB_MAINNET_CHAIN_ID ||
+            chainId == ARB_GOERLI_TESTNET_CHAIN_ID ||
+            chainId == ARB_SEPOLIA_TESTNET_CHAIN_ID;
     }
 }

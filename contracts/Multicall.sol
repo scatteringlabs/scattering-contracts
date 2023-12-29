@@ -35,39 +35,4 @@ abstract contract Multicall is IMulticall {
 
         return results;
     }
-
-    function extMulticall(CallData[] calldata calls) external virtual override returns (bytes[] memory) {
-        return multicall2(calls);
-    }
-
-    /// @notice Aggregate calls, ensuring each returns success if required
-    /// @param calls An array of CallData structs
-    /// @return returnData An array of bytes
-    function multicall2(CallData[] calldata calls) internal returns (bytes[] memory) {
-        bytes[] memory results = new bytes[](calls.length);
-        CallData calldata calli;
-        for (uint256 i = 0; i < calls.length; ) {
-            calli = calls[i];
-            (bool success, bytes memory result) = calli.target.call(calli.callData);
-            if (success) {
-                results[i] = result;
-            } else {
-                // Next 4 lines from
-                // https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/master/contracts/utils/AddressUpgradeable.sol#L229
-                if (result.length > 0) {
-                    assembly {
-                        let returndata_size := mload(result)
-                        revert(add(32, result), returndata_size)
-                    }
-                } else {
-                    revert FailedMulticall();
-                }
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-        return results;
-    }
 }

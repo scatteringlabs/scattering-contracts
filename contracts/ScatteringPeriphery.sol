@@ -181,10 +181,6 @@ contract ScatteringPeriphery is
         return this.onERC721Received.selector;
     }
 
-    function extMulticall(CallData[] calldata calls) external override(Multicall) onlyOwner returns (bytes[] memory) {
-        return multicall2(calls);
-    }
-
     receive() external payable {
         if (msg.sender != uniswapRouter && msg.sender != WETH9) revert NotRouterOrWETH9();
     }
