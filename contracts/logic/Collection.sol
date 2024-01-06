@@ -94,7 +94,7 @@ library CollectionLib {
 
         /// mint for `onBehalfOf`, transfer from msg.sender
         collection.fragmentToken.mint(onBehalfOf, Constants.FLOOR_TOKEN_AMOUNT * nftIds.length);
-        // todo The transfer will fail if it is not the owner, so there is no need to verify that the NFT belongs to this owner
+        /// @notice The transfer will fail if it is not the owner, so there is no need to verify that the NFT belongs to this owner
         ERC721Transfer.safeBatchTransferFrom(param.proxyCollection, msg.sender, address(this), nftIds);
 
         emit LockNft(
@@ -211,7 +211,7 @@ library CollectionLib {
             if (
                 Helper.hasActiveActivities(collectionState, nftIds[idx]) &&
                 /// listing safebox can be extended
-                (!Helper.hasActivePrivateOffer(collectionState, nftIds[idx]) ||
+                (!Helper.hasActivePrivateOffer(collectionState, nftIds[idx]) &&
                     !Helper.hasActiveListOffer(collectionState, nftIds[idx]))
             ) revert Errors.NftHasActiveActivities();
 
@@ -239,7 +239,9 @@ library CollectionLib {
             SafeBox storage safeBox = Helper.useSafeBox(collection, nftId);
             if (!safeBox.isSafeBoxExpired()) revert Errors.SafeBoxHasNotExpire();
             // todo If auctions are enabled in the future, this next line of code should be retained
-            if (!Helper.isAuctionPeriodOver(safeBox)) revert Errors.AuctionHasNotCompleted();
+            if (!Constants.FUNCTION_DISABLED) {
+                if (!Helper.isAuctionPeriodOver(safeBox)) revert Errors.AuctionHasNotCompleted();
+            }
 
             /// remove expired safeBox, and dump it to vault
             removeSafeBox(collection, nftId);

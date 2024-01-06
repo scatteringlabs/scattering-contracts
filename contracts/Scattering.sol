@@ -58,9 +58,6 @@ contract Scattering is
     VRFCoordinatorV2Interface internal immutable COORDINATOR;
 
     bytes32 public constant MONITOR_ROLE = keccak256("MONITOR_ROLE");
-    /// @notice If set to true, this will suspend the functions fragmentNFTs, initAuctionOnVault,
-    /// initAuctionOnExpiredSafeBoxes, ownerInitAuctions, and ownerInitRaffles.
-    bool internal constant FUNCTION_DISABLED = true;
 
     /// A mapping from VRF request Id to raffle.
     mapping(uint256 => RandomRequestInfo) internal randomnessRequestToReceiver;
@@ -86,8 +83,8 @@ contract Scattering is
     uint32 internal trialDays; // trial period in days
     uint32 internal commonPoolCommission; //  the uint32 type can easily represent the number 10000
     uint32 internal safeBoxCommission; //  the uint32 type can easily represent the number 10000
-    address internal paymentToken; //  Extend the validity period payment token. If it is Native, use address(0)
-    uint256 internal paymentAmount; // Extend the validity period payment amount
+    address internal paymentToken; //  Extend the validity period payment token. If it is native, use address(0)
+    uint256 internal paymentAmount; // The payment amount for each additional day of extending the safebox's validity period
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(bytes32 _keyHash, uint64 _subId, address _vrfCoordinator) payable VRFConsumerBaseV2(_vrfCoordinator) {
@@ -286,7 +283,7 @@ contract Scattering is
         uint256[] memory nftIds,
         address onBehalfOf
     ) external nonReentrant whenNotPaused {
-        if (FUNCTION_DISABLED) {
+        if (Constants.FUNCTION_DISABLED) {
             _disabledFunction();
         }
         _mustValidNftIds(nftIds);
@@ -318,7 +315,7 @@ contract Scattering is
         address bidToken,
         uint96 bidAmount
     ) external nonReentrant whenNotPaused {
-        if (FUNCTION_DISABLED) {
+        if (Constants.FUNCTION_DISABLED) {
             _disabledFunction();
         }
         _mustValidNftIds(vaultIdx);
@@ -335,7 +332,7 @@ contract Scattering is
         address bidToken,
         uint256 bidAmount
     ) external nonReentrant whenNotPaused {
-        if (FUNCTION_DISABLED) {
+        if (Constants.FUNCTION_DISABLED) {
             _disabledFunction();
         }
         _mustValidNftIds(nftIds);
@@ -352,7 +349,7 @@ contract Scattering is
         address token,
         uint256 minimumBid
     ) external nonReentrant whenNotPaused {
-        if (FUNCTION_DISABLED) {
+        if (Constants.FUNCTION_DISABLED) {
             _disabledFunction();
         }
         _mustValidNftIds(nftIds);
@@ -389,7 +386,7 @@ contract Scattering is
     }
 
     function ownerInitRaffles(RaffleInitParam memory param) external nonReentrant whenNotPaused {
-        if (FUNCTION_DISABLED) {
+        if (Constants.FUNCTION_DISABLED) {
             _disabledFunction();
         }
         _mustValidNftIds(param.nftIds);
@@ -445,6 +442,9 @@ contract Scattering is
         _mustValidTransferAmount(param.token, param.price);
         // a comparison is made below, so next line can be removed
         //  _mustSupportedToken(param.token);
+        if (param.receiver != address(0)) {
+            _disabledFunction();
+        }
 
         (CollectionState storage collectionState, address underlying) = _useUnderlyingCollectionState(param.collection);
         if (collectionState.offerToken != param.token) {

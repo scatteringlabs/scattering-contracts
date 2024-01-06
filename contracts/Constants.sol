@@ -8,6 +8,11 @@ library Constants {
     /// @dev fragment token amount of 1 NFT (with 18 decimals)
     uint256 public constant FLOOR_TOKEN_AMOUNT = 10_000 ether;
 
+    /// @notice If set to true, this will suspend the functions fragmentNFTs, initAuctionOnVault,
+    /// initAuctionOnExpiredSafeBoxes, ownerInitAuctions, and ownerInitRaffles.
+    /// (tidyExpiredNFTs->isAuctionPeriodOver)
+    bool public constant FUNCTION_DISABLED = true;
+
     /// @notice Auction Config
     uint256 public constant FREE_AUCTION_PERIOD = 24 hours;
     uint256 public constant AUCTION_INITIAL_PERIODS = 24 hours;

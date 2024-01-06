@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "./interface/IScattering.sol";
 import "./Constants.sol";
-import {TicketRecord, SafeBox} from "./logic/Structs.sol";
+import {TicketRecord, SafeBox, AuctionType} from "./logic/Structs.sol";
 
 contract ScatteringGetter {
     IScattering public _scattering;
@@ -58,7 +58,7 @@ contract ScatteringGetter {
         )
     {
         // bytes32 to type bytes memory
-        bytes memory val = _scattering.extsload(keccak256(abi.encode(collection, COLLECTION_STATES_SLOT)), 8);
+        bytes memory val = _scattering.extsload(keccak256(abi.encode(collection, COLLECTION_STATES_SLOT)), 9);
 
         assembly {
             fragmentToken := mload(add(val, 0x20))
@@ -133,9 +133,9 @@ contract ScatteringGetter {
             uint128 lastBidAmount,
             address lastBidder,
             address triggerAddress,
-            bool isSelfTriggered,
             uint64 activityId,
-            uint32 feeRateBips
+            uint32 feeRateBips,
+            AuctionType typ
         )
     {
         bytes32 collectionSlot = keccak256(abi.encode(underlyingCollection(collection), COLLECTION_STATES_SLOT));
@@ -157,9 +157,9 @@ contract ScatteringGetter {
             lastBidder := shr(96, slotVal)
 
             slotVal := mload(add(val, 0x80))
-            isSelfTriggered := and(slotVal, 0xFF)
-            activityId := and(shr(8, slotVal), MASK_64)
-            feeRateBips := and(shr(72, slotVal), MASK_32)
+            activityId := and(slotVal, MASK_64)
+            feeRateBips := and(shr(64, slotVal), MASK_32)
+            typ := and(shr(72, slotVal), 0xFF)
         }
     }
 
