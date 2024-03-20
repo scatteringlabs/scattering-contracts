@@ -8,7 +8,7 @@ This project demonstrates a Hardhat and Foundry use case. It comes with a sample
 2. [Install foundry](https://github.com/foundry-rs/foundry)
 
 ```
-git clone https://github.com/rentfun/scattering-contracts
+git clone https://github.com/scatteringlabs/scattering-contracts
 cd scattering-contracts
 pnpm install
 forge install

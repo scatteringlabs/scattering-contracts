@@ -127,6 +127,7 @@ library CollectionLib {
                 SafeBox({keyId: keyId, expiryTs: uint32(expiryTs), owner: onBehalfOf})
             );
 
+            delete collectionState.activePrivateOffers[nftIds[idx]];
             // keys[idx] = SafeBoxLib.encodeSafeBoxKey(key);
             keys[idx] = uint256(keyId);
 

@@ -22,7 +22,7 @@ import "./Multicall.sol";
 import "./Errors.sol";
 import "./library/CurrencyTransfer.sol";
 
-/// @custom:oz-upgrades-unsafe-allow external-library-linking
+/// @custom:oz-upgrades-unsafe-allow constructor external-library-linking state-variable-immutable
 contract Scattering is
     IScattering,
     IScatteringEvent,
@@ -124,6 +124,7 @@ contract Scattering is
         }
         paymentToken = _paymentToken;
         paymentAmount = _paymentAmount;
+        emit PaymentParamUpdated(paymentToken, paymentAmount);
     }
 
     function setCommonPoolCommission(uint32 _commonPoolCommission) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -261,7 +262,10 @@ contract Scattering is
         if (paymentAmount == 0) {
             revert Errors.InvalidParam();
         }
-        uint256 totalPayoutAmount = paymentAmount * newRentalDays * nftIds.length;
+        uint256 totalPayoutAmount = (paymentAmount *
+            newRentalDays *
+            nftIds.length *
+            Constants._calculateDiscount(Constants.EXTEND_DISCOUNT_RATE_BIPS, newRentalDays)) / 10_000;
         _addTokensInternal(address(this), paymentToken, totalPayoutAmount);
 
         collectionState.extendLockingForKeys(

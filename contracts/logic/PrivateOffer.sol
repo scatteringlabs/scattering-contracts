@@ -261,6 +261,7 @@ library PrivateOfferLib {
             SafeBox storage safeBox = collection.useSafeBox(nftId);
             /// this revert couldn't happen but just leaving it (we have checked offer'EndTime before)
             if (safeBox.isSafeBoxExpired()) revert Errors.SafeBoxHasExpire();
+            if (offer.owner != safeBox.owner) revert Errors.ActivityHasExpired();
 
             collection.transferSafeBox(safeBox, msg.sender);
 
